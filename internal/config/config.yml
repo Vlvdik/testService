@@ -1,0 +1,12 @@
+config:
+  host: ""
+  port: ""
+  db_host: ""
+  db_port: ""
+  db_name: ""
+  db_user: ""
+  db_pwd: ""
+  nats_username: ""
+  nats_pwd: ""
+  nats_addr: ""
+  stream_name: ""
