@@ -8,24 +8,39 @@ import (
 	"someService/internal/config"
 	"someService/internal/database/pg"
 	"someService/internal/models"
+	"sync"
 )
 
-func InitStream(cfg *config.Config) (nats.JetStreamContext, error) {
+type Stream struct {
+	Js   nats.JetStreamContext
+	Name string
+	conn *pgx.Conn
+	mu   *sync.Mutex
+}
+
+func NewStream(cfg *config.Config, conn *pgx.Conn) *Stream {
+	var mu sync.Mutex
+	js := InitStream(cfg)
+
+	return &Stream{Js: js, Name: cfg.StreamName, conn: conn, mu: &mu}
+}
+
+func InitStream(cfg *config.Config) nats.JetStreamContext {
 	user := nats.UserInfo(cfg.NatsUsername, cfg.NatsPwd)
 
 	nc, err := nats.Connect(cfg.NatsAddr, user)
 	if err != nil {
-		log.Panicf("jetstream init failed: %s", err.Error())
+		log.Panicf("nats connect failed: %s", err.Error())
 	}
 
 	js, _ := nc.JetStream(nats.PublishAsyncMaxPending(256))
 
 	err = createStream(js, cfg.StreamName)
 	if err != nil {
-		log.Panicf("jetstream init failed: %s", err.Error())
+		log.Panicf("stream create failed: %s", err.Error())
 	}
 
-	return js, nil
+	return js
 }
 
 func createStream(js nats.JetStreamContext, name string) error {
@@ -47,9 +62,9 @@ func createStream(js nats.JetStreamContext, name string) error {
 	return nil
 }
 
-func HandleSubscribe(js nats.JetStreamContext, name string, conn *pgx.Conn) {
-	subjectName := name + ".*"
-	_, err := js.Subscribe(subjectName, func(m *nats.Msg) {
+func (s *Stream) HandleSubscribe() {
+	subjectName := s.Name + ".*"
+	_, err := s.Js.Subscribe(subjectName, func(m *nats.Msg) {
 		var review models.Client
 		err := json.Unmarshal(m.Data, &review)
 		log.Println(review)
@@ -57,7 +72,8 @@ func HandleSubscribe(js nats.JetStreamContext, name string, conn *pgx.Conn) {
 			log.Panicf("error when trying to encode message: %s\nMESSAGE: %v", err.Error(), m.Data)
 		}
 
-		err = pg.InsertIntoDB(conn, review)
+		s.mu.Lock()
+		err = pg.InsertIntoDB(s.conn, review)
 		if err != nil {
 			log.Panicf("error when trying to insert data to DB: %s", err.Error())
 		}
@@ -66,6 +82,7 @@ func HandleSubscribe(js nats.JetStreamContext, name string, conn *pgx.Conn) {
 		if err != nil {
 			log.Panicf("error when trying to insert data to cache: %s", err.Error())
 		}
+		s.mu.Unlock()
 
 		log.Printf("new message: UID - %s\n", review.Uid)
 	})

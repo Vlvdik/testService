@@ -10,8 +10,14 @@ import (
 func PublishReviews(js nats.JetStreamContext) {
 	reviews := []models.Client{
 		models.Client{
-			Uid:  "habobafwe-wcn1211212e1awef-qcsio12mp[x",
-			Data: models.Data{OrderUID: "howkpewfwe-wcn1211212e1awef-qcsio12mp[x", CustomerID: "1234"},
+			Uid: "some-uid-12345",
+			Data: models.Data{
+				OrderUID:        "some-uid-12345",
+				DeliveryService: "WB",
+				CustomerID:      "12345",
+				Shardkey:        "12-12-12",
+				SmID:            123456,
+			},
 		},
 	}
 
@@ -25,7 +31,7 @@ func PublishReviews(js nats.JetStreamContext) {
 		if err != nil {
 			log.Println(err)
 		} else {
-			log.Printf("Publisher  =>  Message:%s\n", oneReview.Uid)
+			log.Printf("Publisher  =>  UID:%s\n", oneReview.Uid)
 		}
 	}
 }

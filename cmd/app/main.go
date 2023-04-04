@@ -7,6 +7,7 @@ import (
 	"someService/internal/database/pg"
 	"someService/internal/nats"
 	"someService/internal/server"
+	"sync"
 )
 
 func main() {
@@ -19,14 +20,26 @@ func main() {
 	conn := pg.NewDBConnection(cfg)
 	defer conn.Close(context.Background())
 
-	js, err := nats.InitStream(cfg)
+	s := nats.NewStream(cfg, conn)
 
-	// WARNING: THIS BLOCK OF CODE JUST HARDCODED
-	nats.PublishReviews(js)
-	/////////////////////////
+	var wg sync.WaitGroup
 
-	nats.HandleSubscribe(js, cfg.StreamName, conn)
+	// Pub worker mock
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		nats.PublishReviews(s.Js)
+	}()
+	//
 
-	s := server.NewServer(cfg.Host+cfg.Port, conn)
-	s.Start()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.HandleSubscribe()
+	}()
+
+	wg.Wait()
+
+	serv := server.NewServer(cfg.Host+cfg.Port, conn)
+	serv.Start()
 }

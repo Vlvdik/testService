@@ -69,9 +69,9 @@ func GetDataByUID(orderUid string, conn *pgx.Conn) (models.Data, error) {
 	return models.Data{}, err
 }
 
-func InsertIntoDB(conn *pgx.Conn, data models.Client) error {
-	query := "INSERT INTO client (uid, client_data) VALUES ($1, $2);"
-	_, err := conn.Query(context.Background(), query, data.Uid, data.Data)
+func InsertIntoDB(conn *pgx.Conn, client models.Client) error {
+	query := "INSERT INTO client(uid, client_data) VALUES($1, $2);"
+	_, err := conn.Exec(context.Background(), query, client.Uid, client.Data)
 	if err != nil {
 		return err
 	}

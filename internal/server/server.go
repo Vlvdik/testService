@@ -20,7 +20,7 @@ func NewServer(addr string, conn *pgx.Conn) *Server {
 	router.Static("/static", "../../web/")
 	router.LoadHTMLGlob("../../web/html/*.html")
 	router.GET("/", s.Home)
-	router.GET("/search/:uid", s.SearchDataByUID)
+	router.GET("/:uid", s.SearchDataByUID)
 
 	return s
 }
