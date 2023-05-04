@@ -30,8 +30,8 @@ func main() {
 		defer wg.Done()
 		nats.PublishReviews(s.Js)
 	}()
-	//
-
+	
+	// Sub worker mock
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
