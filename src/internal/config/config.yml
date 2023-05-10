@@ -1,0 +1,30 @@
+server:
+  host: "localhost"
+  port: ":8080"
+  request_timeout: 30
+db:
+  port: ":5432"
+  name: ""
+  user: ""
+  pwd: "wasp1488"
+cache:
+  host: "localhost"
+  port: ":6379"
+  pwd: ""
+  secret: ""
+  write_duration: 60
+publisher:
+  url: ""
+  user: ""
+  pwd: ""
+  addr: ""
+  subject: ""
+  max_pending: 256
+clickhouse:
+  host: ""
+  port: ""
+  db: ""
+  user: ""
+  pwd: ""
+  table: ""
+  timeout: 30
