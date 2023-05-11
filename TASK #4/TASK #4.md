@@ -18,7 +18,7 @@
 | Атрибут      | Тип         | Описание                | Значение    |
 |--------------|-------------|-------------------------|-------------|
 | id     *     | int(serial) | *id*                    | 1...lastday |
-| progres_id * | int         | *foreign key(DAILYBOX)* |             |
+| progres_id * | int         | *foreign key(DAILYBOX_PROGRESS)* |             |
 | money        | int         |                         |             |
 | crystals     | int         |                         |             |
 
