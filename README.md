@@ -45,7 +45,7 @@ broker:
   url: "nats://0.0.0.0:49652"
   user: ""
   pwd: ""
-  subject: "aboba"
+  subject: ""
   max_pending: 256
 clickhouse:
   host: ""
