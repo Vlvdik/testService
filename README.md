@@ -5,17 +5,19 @@
 
 ### migrations
 
+download ```https://github.com/golang-migrate/migrate```
 
 **postgres**:
 ```
-migrate -path ./schema/pg -database "your connection string" up
+migrate -path ./schema/pg -database "your_path" up
 ```
 **clickhouse**:
 ```
-migrate -path ./schema/clickhouse "your connection string" up
+migrate -path ./schema/clickhouse "your_path" up
 ```
 ---
-installation
+
+**installation**
 1) Clone repository
 ```
 git clone https://github.com/Vlvdik/hezzlService
