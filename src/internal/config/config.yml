@@ -1,0 +1,29 @@
+server:
+  host: ""
+  port: ""
+  request_timeout: 30
+db:
+  port: ""
+  name: ""
+  user: ""
+  pwd: ""
+cache:
+  host: ""
+  port: ""
+  pwd: ""
+  secret: ""
+  write_duration: 60
+broker:
+  url: ""
+  user: ""
+  pwd: ""
+  subject: ""
+  max_pending:
+clickhouse:
+  host: ""
+  port: ""
+  db: ""
+  user: ""
+  pwd: ""
+  table: ""
+  timeout:
