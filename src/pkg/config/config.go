@@ -34,7 +34,7 @@ type Cache struct {
 }
 
 type Broker struct {
-	URL        string `,apstructure:"url"`
+	URL        string `mapstructure:"url"`
 	User       string `mapstructure:"user"`
 	Pwd        string `mapstructure:"pwd"`
 	Addr       string `mapstructure:"addr"`
@@ -53,7 +53,7 @@ type ClickHouse struct {
 }
 
 func NewConfig() (*Config, error) {
-	viper.AddConfigPath("../../src/internal/config")
+	viper.AddConfigPath("./src/internal/config")
 
 	err := viper.ReadInConfig()
 	if err != nil {

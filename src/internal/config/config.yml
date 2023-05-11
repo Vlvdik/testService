@@ -1,25 +1,24 @@
 server:
-  host: "localhost"
-  port: ":8080"
+  host: ""
+  port: ""
   request_timeout: 30
 db:
-  port: ":5432"
+  port: ""
   name: ""
   user: ""
-  pwd: "wasp1488"
+  pwd: ""
 cache:
-  host: "localhost"
-  port: ":6379"
+  host: ""
+  port: ""
   pwd: ""
   secret: ""
   write_duration: 60
-publisher:
+broker:
   url: ""
   user: ""
   pwd: ""
-  addr: ""
   subject: ""
-  max_pending: 256
+  max_pending:
 clickhouse:
   host: ""
   port: ""
@@ -27,4 +26,4 @@ clickhouse:
   user: ""
   pwd: ""
   table: ""
-  timeout: 30
+  timeout:

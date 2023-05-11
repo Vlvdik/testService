@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+const ErrNotFound = "errors.NotFound"
+
 func (ws *WebServer) handleDefaultPage(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("Home"))
 }
@@ -56,7 +58,7 @@ func (ws *WebServer) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	} else {
-		ID, err := strconv.Atoi(r.URL.Query().Get("id"))
+		ID, err := strconv.Atoi(r.URL.Query().Get("Id"))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -87,6 +89,7 @@ func (ws *WebServer) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 
 		res, err := ws.updateItem(item)
 		if err != nil {
+			_, _ = w.Write([]byte(ErrNotFound))
 			w.WriteHeader(http.StatusNotFound)
 			return
 		} else {
@@ -101,7 +104,7 @@ func (ws *WebServer) handleItemRemove(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	} else {
-		ID, err := strconv.Atoi(r.URL.Query().Get("id"))
+		ID, err := strconv.Atoi(r.URL.Query().Get("Id"))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -113,12 +116,22 @@ func (ws *WebServer) handleItemRemove(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		res, err := ws.deleteItem(ID, campID)
+		var data models.Item
+		data.ID = ID
+		data.CampaignID = campID
+
+		res, err := ws.deleteItem(&data)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			if err.Error() == ErrNotFound {
+				_, _ = w.Write([]byte(ErrNotFound))
+				w.WriteHeader(http.StatusNotFound)
+				return
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		} else {
-			log.Printf("[SERVER] | DELETE /item/remove | succesfull => id:%d campaignId: %d\n", ID, campID)
+			log.Println("[SERVER] | DELETE /item/remove | succesfull\n")
 			_, _ = w.Write(res)
 		}
 	}

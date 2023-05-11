@@ -14,7 +14,7 @@ type NatsConn struct {
 func NewNatsConn(cfg config.Broker) *NatsConn {
 	user := nats.UserInfo(cfg.User, cfg.Pwd)
 
-	nc, err := nats.Connect(cfg.Addr, user)
+	nc, err := nats.Connect(cfg.URL, user)
 	if err != nil {
 		log.Panicf("[BROKER] connect failed: %s", err.Error())
 	}
@@ -51,7 +51,7 @@ func createStream(js nats.JetStreamContext, name string) error {
 }
 
 func (nc *NatsConn) Publish(data []byte) {
-	_, err := nc.Js.Publish(nc.Subj, data)
+	_, err := nc.Js.Publish(nc.Subj+".ru", data)
 	if err != nil {
 		log.Printf("[BROKER] error when trying to publish data: %s\n", err.Error())
 	}

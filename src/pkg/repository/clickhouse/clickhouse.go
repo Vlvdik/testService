@@ -35,44 +35,53 @@ func NewConn(cfg config.ClickHouse) *ClickHouseConn {
 	}
 }
 
-// TODO: add broker interface...
+// TODO: add summarized broker interface...
 func (ch *ClickHouseConn) SetNatsConn(nc *NatsConn.NatsConn) {
 	ch.nc = nc
 }
 
 func (ch *ClickHouseConn) HandleSubscribe() {
-	ch.nc.Js.Subscribe(ch.nc.Subj+".*", func(msg *nats.Msg) {
+	ch.nc.Js.Subscribe(ch.nc.Subj+".ru", func(msg *nats.Msg) {
 		var items []models.Item
 
-		err := json.Unmarshal(msg.Data, &items)
-		if err != nil {
-			log.Panicf("error when trying to encode message: %s\nMESSAGE: %v", err.Error(), msg.Data)
-		}
-
-		log.Printf("[CLICKHOUSE] receive data: %v", items)
+		log.Println("[CLICKHOUSE] receive data")
 
 		CampIdCol := column.New[int32]()
-		NameCol := column.New[string]()
-		DescriptionCol := column.New[string]()
+		NameCol := column.NewString()
+		DescriptionCol := column.NewString()
 		PriorityCol := column.New[int32]()
-		RemovedCol := column.New[bool]()
-		EventTimeCol := column.New[string]()
+		RemovedCol := column.New[uint8]()
+		EventTimeCol := column.NewString()
 
-		for _, item := range items {
+		for i, item := range items {
+			err := json.Unmarshal(msg.Data, &items[i])
+			if err != nil {
+				log.Printf("[CLICKHOUSE] error when trying to encode message: %s\nMESSAGE: %v", err.Error(), msg.Data)
+			}
+
 			CampIdCol.Append(int32(item.CampaignID))
 			NameCol.Append(item.Name)
 			DescriptionCol.Append(item.Description)
 			PriorityCol.Append(int32(item.Priority))
-			RemovedCol.Append(item.Removed)
-			EventTimeCol.Append(item.CreatedAt)
+
+			// Convert to uint type for ClickHouse
+			if item.Removed {
+				RemovedCol.Append(1)
+			} else {
+				RemovedCol.Append(0)
+			}
+
+			EventTimeCol.Append(item.CreatedAt.Format(time.Stamp))
 		}
 
 		ctxInsert, cancelInsert := context.WithTimeout(context.Background(), ch.timeout*time.Second)
-		err = ch.conn.Insert(ctxInsert, insertData, CampIdCol, NameCol, DescriptionCol, PriorityCol, RemovedCol, EventTimeCol)
+		err := ch.conn.Insert(ctxInsert, insertData, CampIdCol, NameCol, DescriptionCol, PriorityCol, RemovedCol, EventTimeCol)
 		if err != nil {
 			cancelInsert()
-			panic(err)
+			log.Printf("[CLICKHOUSE] insert failed: %s\n", err.Error())
 		}
 		cancelInsert()
+
+		log.Println("[CLICKHOUSE] success")
 	})
 }

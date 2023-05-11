@@ -4,6 +4,7 @@ import (
 	"context"
 	"hezzlService/src/internal/models"
 	"hezzlService/src/pkg/config"
+	"hezzlService/src/pkg/repository/clickhouse"
 	"log"
 	"net/http"
 	"time"
@@ -13,7 +14,7 @@ type DBConnector interface {
 	GetItems(ctx context.Context) []models.Item
 	CreateItem(ctx context.Context, item *models.Item) error
 	UpdateItem(ctx context.Context, item *models.Item) error
-	DeleteItem(ctx context.Context, ID, campID int) error
+	DeleteItem(ctx context.Context, item *models.Item) error
 }
 
 type CacheConnector interface {
@@ -30,6 +31,7 @@ type WebServer struct {
 	db              DBConnector
 	cache           CacheConnector
 	pub             Publisher
+	ch              *clickhouse.ClickHouseConn
 	needCacheUpdate bool
 	requestTimeout  time.Duration
 }
@@ -68,4 +70,8 @@ func (ws *WebServer) SetCache(cache CacheConnector) {
 
 func (ws *WebServer) SetPublisher(pub Publisher) {
 	ws.pub = pub
+}
+
+func (ws *WebServer) SetSubscriber(ch *clickhouse.ClickHouseConn) {
+	ws.ch = ch
 }

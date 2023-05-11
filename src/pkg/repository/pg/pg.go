@@ -2,9 +2,11 @@ package pg
 
 import (
 	"context"
+	"errors"
 	"github.com/jackc/pgx/v5"
 	"hezzlService/src/internal/models"
 	"hezzlService/src/pkg/config"
+	"hezzlService/src/pkg/server"
 	"log"
 	"time"
 )
@@ -14,9 +16,11 @@ const (
 	selectAll        = "SELECT * FROM items;"
 	selectOne        = "SELECT * FROM items where id=$1;"
 	selectLastElemID = "SELECT id FROM items ORDER BY ID DESC LIMIT 1;"
-	insertItem       = "INSERT INTO items (campaign_id, name, removed, created_at) VALUES ($1, $2, $3, $4);"
-	updateItem       = "SELECT * FROM items WHERE id=$1 FOR UPDATE; UPDATE items SET campaign_id=$2, name=$3, description=$4 WHERE id=$5"
-	deleteItem       = "SELECT * FROM items WHERE id=$1 FOR UPDATE; DELETE FROM items WHERE id=$1 AND campaign_id=$2;"
+	insertItem       = "INSERT INTO items (campaign_id, name, removed, created_at) VALUES ($1, $2, $3, now());"
+	findUpdatedItem  = "SELECT * FROM items WHERE id=$1 FOR UPDATE;"
+	UpdateItem       = "UPDATE items SET campaign_id=$1, name=$2, description=$3 WHERE id=$4;"
+	findDeletedItem  = "SELECT * FROM items WHERE id=$1 FOR UPDATE;"
+	deleteItem       = "DELETE FROM items WHERE id=$1 AND campaign_id=$2;"
 )
 
 type PostgresConn struct {
@@ -37,22 +41,46 @@ func NewPostgresConnection(cfg config.DB) *PostgresConn {
 }
 
 func (pg *PostgresConn) GetItems(ctx context.Context) []models.Item {
-	res := make([]models.Item, 0)
+	var items []models.Item
 
-	err := pg.Conn.QueryRow(ctx, selectAll).Scan(&res)
+	rows, err := pg.Conn.Query(ctx, selectAll)
 	if err != nil {
 		log.Printf("[DB] | GET items/list | failed: %s\n", err)
 		return []models.Item{}
 	}
+	defer rows.Close()
 
-	return res
+	for rows.Next() {
+		var item models.Item
+		var description any
+		err = rows.Scan(
+			&item.ID,
+			&item.CampaignID,
+			&item.Name,
+			&description,
+			&item.Priority,
+			&item.Removed,
+			&item.CreatedAt,
+		)
+		if err != nil {
+			log.Printf("[DB] mapping failed: %s\n", err.Error())
+		}
+
+		// A crutch to get around problems with NULL values
+		if description != nil {
+			item.Description = description.(string)
+		}
+		items = append(items, item)
+	}
+
+	return items
 }
 
 func (pg *PostgresConn) CreateItem(ctx context.Context, item *models.Item) error {
-	stamp := time.Now().Format(time.Stamp)
+	stamp := time.Now()
 	tx, err := pg.Conn.Begin(ctx)
 
-	_, err = pg.Conn.Exec(ctx, insertItem, item.CampaignID, item.Name, false, stamp)
+	_, err = pg.Conn.Exec(ctx, insertItem, item.CampaignID, item.Name, false)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 		return err
@@ -80,16 +108,31 @@ func (pg *PostgresConn) CreateItem(ctx context.Context, item *models.Item) error
 func (pg *PostgresConn) UpdateItem(ctx context.Context, item *models.Item) error {
 	tx, err := pg.Conn.Begin(ctx)
 
-	_, err = pg.Exec(ctx, updateItem, item.ID, item.CampaignID, item.Name, item.Description, item.ID)
+	_, err = pg.Exec(ctx, findUpdatedItem, item.ID)
 	if err != nil {
-		log.Printf("[DB] | UPDATE | failed: %s\n", err.Error())
+		log.Printf("[DB] | UPDATE | execute failed - element not found: %s\n", err.Error())
+		_ = tx.Rollback(ctx)
+		return errors.New(server.ErrNotFound)
+	}
+
+	_, err = pg.Exec(ctx, UpdateItem, item.CampaignID, item.Name, item.Description, item.ID)
+	if err != nil {
+		log.Printf("[DB] | UPDATE | execute failed: %s\n", err.Error())
 		_ = tx.Rollback(ctx)
 		return err
 	}
 
-	err = pg.Conn.QueryRow(ctx, selectOne, item.ID).Scan(&item)
+	err = pg.Conn.QueryRow(ctx, selectOne, item.ID).Scan(
+		&item.ID,
+		&item.CampaignID,
+		&item.Name,
+		&item.Description,
+		&item.Priority,
+		&item.Removed,
+		&item.CreatedAt,
+	)
 	if err != nil {
-		log.Printf("[DB] | UPDATE | failed: %s\n", err.Error())
+		log.Printf("[DB] | UPDATE | response forming failed: %s\n", err.Error())
 		_ = tx.Rollback(ctx)
 		return err
 	}
@@ -103,15 +146,35 @@ func (pg *PostgresConn) UpdateItem(ctx context.Context, item *models.Item) error
 	return nil
 }
 
-func (pg *PostgresConn) DeleteItem(ctx context.Context, ID, campID int) error {
+func (pg *PostgresConn) DeleteItem(ctx context.Context, item *models.Item) error {
 	tx, err := pg.Conn.Begin(ctx)
-
-	_, err = pg.Exec(ctx, deleteItem, ID, campID)
+	var description any
+	err = pg.Conn.QueryRow(ctx, findDeletedItem, item.ID).Scan(
+		&item.ID,
+		&item.CampaignID,
+		&item.Name,
+		&description,
+		&item.Priority,
+		&item.Removed,
+		&item.CreatedAt,
+	)
 	if err != nil {
-		log.Printf("[DB] | DELETE | failed: %s\n", err.Error())
+		log.Printf("[DB] | DELETE | execute failed - item not exist: %s\n", err.Error())
+		_ = tx.Rollback(ctx)
+		return errors.New(server.ErrNotFound)
+	}
+
+	_, err = pg.Exec(ctx, deleteItem, item.ID, item.CampaignID)
+	if err != nil {
+		log.Printf("[DB] | DELETE | execute failed: %s\n", err.Error())
 		_ = tx.Rollback(ctx)
 		return err
 	}
+
+	if description != nil {
+		item.Description = description.(string)
+	}
+	item.Removed = true
 
 	err = tx.Commit(ctx)
 	if err != nil {

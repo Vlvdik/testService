@@ -24,7 +24,9 @@ func (ws *WebServer) createItem(item models.Item) ([]byte, error) {
 		return nil, err
 	}
 
-	ws.pub.Publish(data)
+	// Imitation of Clickhouse service working process
+	go ws.pub.Publish(data)
+	go ws.ch.HandleSubscribe()
 
 	return data, nil
 }
@@ -71,16 +73,17 @@ func (ws *WebServer) updateItem(item models.Item) ([]byte, error) {
 		return nil, err
 	}
 
-	ws.pub.Publish(data)
+	// Imitation of Clickhouse service working process
+	go ws.pub.Publish(data)
+	go ws.ch.HandleSubscribe()
 
 	return data, nil
 }
 
-func (ws *WebServer) deleteItem(ID, campID int) ([]byte, error) {
+func (ws *WebServer) deleteItem(item *models.Item) ([]byte, error) {
 	ctx, _ := context.WithTimeout(context.Background(), ws.requestTimeout)
-	var res models.Item
 
-	err := ws.db.DeleteItem(ctx, ID, campID)
+	err := ws.db.DeleteItem(ctx, item)
 	if err != nil {
 		log.Printf("[SERVER] | DELETE item/remove | item not found: %s\n", err.Error())
 		return nil, err
@@ -88,18 +91,15 @@ func (ws *WebServer) deleteItem(ID, campID int) ([]byte, error) {
 
 	ws.needCacheUpdate = true
 
-	// Form response data
-	res.ID = ID
-	res.CampaignID = campID
-	res.Removed = true
-
-	data, err := json.Marshal(res)
+	data, err := json.Marshal(item)
 	if err != nil {
 		log.Printf("[SERVER] | DELETE item/remove |  error when trying to marshal Item struct: %s\n", err.Error())
 		return nil, err
 	}
 
-	ws.pub.Publish(data)
+	// Imitation of Clickhouse service working process
+	go ws.pub.Publish(data)
+	go ws.ch.HandleSubscribe()
 
 	return data, nil
 }

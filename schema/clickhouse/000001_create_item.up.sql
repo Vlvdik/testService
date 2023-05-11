@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS items
     `Name` String,
     `Description` String,
     `Priority` Int32,
-    `Removed` Bool,
-    `EventTime` DateTime
+    `Removed` UInt8,
+    `EventTime` String
 )
     ENGINE=Log;
